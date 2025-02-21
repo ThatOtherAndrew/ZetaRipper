@@ -2,6 +2,7 @@ import html
 import json
 import re
 from pathlib import Path
+from shutil import rmtree
 from urllib.parse import unquote
 
 import img2pdf
@@ -51,9 +52,11 @@ def main() -> None:
     for book_num in download_queue:
         book = books[book_num]
         pages_path = output_dir / book['url']
-        pages_path.unlink(missing_ok=True)
+        if pages_path.is_dir():
+            rmtree(pages_path)
+        pages_url = f'https://ebooks.zetamaths.com/{code}/{book["url"]}'
+            pages_path.mkdir()
         pages_path.mkdir()
-        pages_url = f'https://ebooks.zetamaths.com/{code}/{book["url"]}/pages/'
 
         for page in trange(1, book['page_count'] + 1, desc='Downloading pages'):
             while True:
