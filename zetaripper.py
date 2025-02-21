@@ -50,17 +50,16 @@ def main() -> None:
     output_dir = Path('output')
     output_dir.mkdir(exist_ok=True)
     for book_num in download_queue:
-        book = books[book_num]
-        pages_path = output_dir / book['url']
+        pages_path = output_dir / books[book_num]['url']
         if pages_path.is_dir():
             rmtree(pages_path)
-        pages_url = f'https://ebooks.zetamaths.com/{code}/{book["url"]}'
-            pages_path.mkdir()
         pages_path.mkdir()
+        pages_url = f'https://ebooks.zetamaths.com/{code}/{books[book_num]["url"]}'
+        book = session.get(pages_url).json()['props']['book']
 
         for page in trange(1, book['page_count'] + 1, desc='Downloading pages'):
             while True:
-                response = session.get(pages_url + str(page))
+                response = session.get(f'{pages_url}/pages/{page}')
                 if response.ok:
                     break
                 # We're probably ratelimited, so be cheeky and start a new session
