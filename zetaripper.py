@@ -9,48 +9,33 @@ import requests
 from tqdm import trange
 
 
-def get_new_session(code: str, password: str) -> requests.Session:
+def get_new_session(code: str, password: str) -> tuple[requests.Session, requests.Response]:
     session = requests.Session()
     session.headers = {
         'Origin': 'https://ebooks.zetamaths.com',
-        'Referer': 'https://ebooks.zetamaths.com/gbmka',
+        'Referer': f'https://ebooks.zetamaths.com/{code}',
     }
 
-    response = session.get(f'https://ebooks.zetamaths.com/{code}')
-    inertia_version = json.loads(html.unescape(re.search('data-page="(.+?)"', response.text).group(1)))['version']
-    session.headers['X-Inertia'] = 'true'
-    session.headers['X-Inertia-Version'] = inertia_version
-
-    session.post(
-        f'https://ebooks.zetamaths.com/{code}/login',
-        data={'access_code': password, 'target_page': 1},
-        headers={'X-Xsrf-Token': unquote(session.cookies['XSRF-TOKEN'])},
-    )
-
-    return session
-
-
-def main() -> None:
-    session = requests.Session()
-    session.headers = {
-        'Origin': 'https://ebooks.zetamaths.com',
-        'Referer': 'https://ebooks.zetamaths.com/gbmka',
-    }
-
-    code = input('Bookshelf code (5-character code in URL): ').strip().lower()
     response = session.get(f'https://ebooks.zetamaths.com/{code}')
     response.raise_for_status()
     inertia_version = json.loads(html.unescape(re.search('data-page="(.+?)"', response.text).group(1)))['version']
     session.headers['X-Inertia'] = 'true'
     session.headers['X-Inertia-Version'] = inertia_version
 
-    password = input('Bookshelf password: ').strip()
     response = session.post(
         f'https://ebooks.zetamaths.com/{code}/login',
         data={'access_code': password, 'target_page': 1},
         headers={'X-Xsrf-Token': unquote(session.cookies['XSRF-TOKEN'])},
     )
     response.raise_for_status()
+
+    return session, response
+
+
+def main() -> None:
+    code = input('Bookshelf code (5-character code in URL): ').strip().lower()
+    password = input('Bookshelf password: ').strip()
+    session, response = get_new_session(code, password)
     books = response.json()['props']['books']
 
     print('\n* Bookshelf')
@@ -76,7 +61,7 @@ def main() -> None:
                 if response.ok:
                     break
                 # We're probably ratelimited, so be cheeky and start a new session
-                session = get_new_session(code, password)
+                session, _ = get_new_session(code, password)
             (pages_path / f'{page}.jpg').write_bytes(response.content)
 
         print('Constructing PDF file')
